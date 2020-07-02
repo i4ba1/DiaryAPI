@@ -8,6 +8,7 @@ import (
 	_ "github.com/lib/pq"
 	"log"
 	"net/http"
+	"regexp"
 )
 
 type App struct {
@@ -24,6 +25,9 @@ func (a *App) Run(addr string) {
 	log.Fatal(http.ListenAndServe(":8789", a.Router))
 }
 
+/**
+New user to signUp
+ */
 func (a *App) signUp(w http.ResponseWriter, r *http.Request) {
 	var u RestAPI.Account
 	err := json.NewDecoder(r.Body).Decode(&u)
@@ -32,10 +36,26 @@ func (a *App) signUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	/**
+	Check if email was used or was registered in Database
+	 */
 	if !u.EmailWasUsed(a.DB) {
 		respondWithError(w, http.StatusConflict, "Email was used")
 		return
 	}
+
+	emailRegex := regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
+	if !emailRegex.MatchString(u.Email) {
+		respondWithError(w, http.StatusExpectationFailed, "Incorrect email pattern")
+		return
+	}
+
+	passwordRegex := regexp.MustCompile("^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&-+=()])(?=\\\\S+$).{8, 20}$")
+	if !passwordRegex.MatchString(u.Password) {
+		respondWithError(w, http.StatusExpectationFailed, "Incorrect password pattern, should contain 6-32 characters and must\nhave at least one uppercase letter, one lowercase letter, one number, and one special character")
+		return
+	}
+
 	defer r.Body.Close()
 
 	if err := u.CreateUser(a.DB); err != nil {
