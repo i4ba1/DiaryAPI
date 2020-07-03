@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/gorilla/mux"
 	"github.com/i4ba1/DiaryAPI/RestAPI"
+	"github.com/i4ba1/DiaryAPI/user_management"
 	_ "github.com/lib/pq"
 	"log"
 	"net/http"
@@ -29,7 +30,7 @@ func (a *App) Run(addr string) {
 New user to signUp
  */
 func (a *App) signUp(w http.ResponseWriter, r *http.Request) {
-	var u RestAPI.Account
+	var u user_management.Account
 	err := json.NewDecoder(r.Body).Decode(&u)
 	if  err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -44,17 +45,23 @@ func (a *App) signUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	emailRegex := regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
-	if !emailRegex.MatchString(u.Email) {
+	emailRegex, errEmail := regexp.Compile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
+	if errEmail != nil {
+		respondWithError(w, http.StatusExpectationFailed, "Incorrect email regex pattern")
+		return
+	}
+
+	isEmailValid := emailRegex.MatchString(u.Email)
+	if !isEmailValid {
 		respondWithError(w, http.StatusExpectationFailed, "Incorrect email pattern")
 		return
 	}
 
-	passwordRegex := regexp.MustCompile("^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&-+=()])(?=\\\\S+$).{8, 20}$")
+	/*passwordRegex := regexp.MustCompile("^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&-+=()])(?=\\\\S+$).{8, 20}$")
 	if !passwordRegex.MatchString(u.Password) {
 		respondWithError(w, http.StatusExpectationFailed, "Incorrect password pattern, should contain 6-32 characters and must\nhave at least one uppercase letter, one lowercase letter, one number, and one special character")
 		return
-	}
+	}*/
 
 	defer r.Body.Close()
 
@@ -79,13 +86,16 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 }
 
 func (a *App) initializeRoutes() {
+	//go build && ./DiaryAPI
 	a.Router = mux.NewRouter()
 	a.Router.StrictSlash(true)
-	diaryAPI := InitDiaryAPI(a.DB)
+	diaryAPI 	:= InitDiaryAPI(a.DB)
+	userAPI		:= InitUserAPI(a.DB)
 	subRouter := a.Router.PathPrefix("/api").Subrouter()
 
 	//a.Router.HandleFunc("/products", a.getProducts).Methods("GET")
-	subRouter.HandleFunc("/signUp", a.signUp).Methods("POST")
+	subRouter.HandleFunc("/user/signUp", a.signUp).Methods("POST")
+	subRouter.HandleFunc("/user/login", userAPI.SignInHandler).Methods("POST")
 	//a.Router.HandleFunc("/product/{id:[0-9]+}", a.getProduct).Methods("GET")
 	//a.Router.HandleFunc("/product/{id:[0-9]+}", a.updateProduct).Methods("PUT")
 	//a.Router.HandleFunc("/product/{id:[0-9]+}", a.deleteProduct).Methods("DELETE")
