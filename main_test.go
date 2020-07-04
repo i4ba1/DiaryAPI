@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"gopkg.in/validator.v2"
 	"time"
 
 	"github.com/i4ba1/DiaryAPI/RestAPI/diary_management"
@@ -98,9 +99,9 @@ func TestCreateNewDiary(t *testing.T) {
 func TestLogin(t *testing.T) {
 	//clearTable()
 	payload, _ := json.Marshal(user_management.LoginDto{
-		Username: "uways11",
+		Username: "uways12",
 		Email:    "",
-		Pass:     "123",
+		Pass:     "123abcdefgh",
 	})
 	//"username":"uways","password":"123","salt":"123","locked":false, "disabled":true
 	request, err := http.NewRequest("POST", "/api/user/login", bytes.NewReader(payload))
@@ -128,18 +129,22 @@ func TestLogin(t *testing.T) {
 
 func TestCreateUser(t *testing.T) {
 
-	//clearTable()
+	clearTable()
 
 	//	var jsonStr = []byte(`{"name":"uways", "sure_name": "muhammad uways", "email":"muhammaduways@outlook.co.id","username":"uways","password":"123","salt":"123","locked":false, "disabled":true}`)
 	fmt.Println("UUID ===> ", uuid.NewV4())
-	payload, _ := json.Marshal(user_management.CreateNewUser{
-		Id:       uuid.NewV4(),
+	payload, _ := json.Marshal(user_management.NewUserDto{
+		Id:       4,
 		Name:     "Uways",
 		SureName: "Muhammad Uways",
-		Email:    "muhammaduways11@gmail.com",
-		Username: "uways12",
-		Password: "123",
+		Email:    "muhammaduways14@gmail.com",
+		Username: "uways15",
+		Password: "123Abcdefgh_!#",
 	})
+
+	if errs := validator.Validate(payload); errs != nil {
+		fmt.Println("Invalid ====> ",errs.Error())
+	}
 	//"username":"uways","password":"123","salt":"123","locked":false, "disabled":true
 	request, err := http.NewRequest("POST", "/api/user/signUp", bytes.NewReader(payload))
 	if err != nil {

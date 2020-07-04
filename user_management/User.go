@@ -5,26 +5,34 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"fmt"
-	uuid "github.com/satori/go.uuid"
 	"golang.org/x/crypto/argon2"
 )
 
 type Account struct {
-	Id       uuid.UUID `json:"id"`
-	Name     string    `json:"name"`
-	SureName string    `json:"sure_name"`
-	Email    string    `json:"Email"`
-	Username string    `json:"Username"`
-	Password string    `json:"password"`
+	Id       int64		`json:"id"`
+	Name     string    	`json:"name"`
+	SureName string    	`json:"sure_name"`
+	Email    string    	`json:"Email"`
+	Username string    	`json:"Username"`
+	Password string    	`json:"password"`
 }
 
 type CreateNewUser struct {
-	Id       uuid.UUID `json:"id"`
-	Name     string    `json:"name"`
-	SureName string    `json:"sure_name"`
-	Email    string    `json:"Email"`
-	Username string    `json:"Username"`
-	Password string    `json:"password"`
+	Id       int64		`json:"id"`
+	Name     string     `json:"name"`
+	SureName string     `json:"sure_name"`
+	Email    string     `json:"Email"`
+	Username string     `json:"Username"`
+	Password string     `json:"password"`
+}
+
+type NewUserDto struct {
+	Id       int64
+	Name     string
+	SureName string
+	Email    string
+	Username string
+	Password string     `validate:"min=6,max=32,regexp=^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[*.!@$%^&(){}[]:;<>,.?/~_+-=|]).{6,32}$"`
 }
 
 type PasswordConfig struct {
@@ -38,6 +46,20 @@ type LoginDto struct {
 	Username string `json:"Username"`
 	Email    string `json:"Email"`
 	Pass     string `json:"Pass"`
+}
+
+type AccessDetails struct {
+	AccessUuid string
+	UserId   int64
+}
+
+type TokenDetails struct {
+	AccessToken  string		`json:"access_token"`
+	RefreshToken string		`json:"refresh_token"`
+	AccessUuid   string		`json:"access_uuid"`
+	RefreshUuid  string		`json:"refresh_uuid"`
+	ExpiredAt    int64		`json:"expired_at"`
+	ExpiredRt    int64		`json:"expired_rt"`
 }
 
 /**
@@ -109,7 +131,6 @@ func (u *Account) CreateUser(db *sql.DB) error {
 	}
 	hashPass, err := GeneratePassword(config, u.Password)
 	if err == nil{
-		u.Id = uuid.NewV4()
 		u.Password = hashPass
 		err = db.QueryRow("insert into account(id, name, sure_name, Email, Username, password) values($1, $2, $3, $4, $5, $6) returning id",
 			u.Id, u.Name, u.SureName, u.Email, u.Username, u.Password).Scan(&u.Id)
