@@ -1,0 +1,26 @@
+version: '3'
+
+services:
+  fullstack-postgres:
+    image: postgres:latest
+    container_name: full_db_postgres
+    environment:
+      POSTGRES_USER: iqbal
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: daily_diary_dev
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - database_postgres:/var/lib/postgresql/data
+    networks:
+      - fullstack      
+wq
+    ports:
+      - "5432:5432"
+
+volumes:
+  database_postgres:                  
+
+# Networks to be created to facilitate communication between containers
+networks:
+  fullstack:
+    driver: bridge

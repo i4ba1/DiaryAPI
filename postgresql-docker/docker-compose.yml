@@ -1,0 +1,17 @@
+version: '3'
+
+services:
+  database:
+    image: "postgres"
+    environment:
+      - POSTGRES_USER=iqbal
+      - POSTGRES_PASSWORD=root
+      - POSTGRES_DB=db_mahasiswa
+      - DATABASE_HOST=localhost
+    volumes:
+      - database_data:/var/lib/postgresql/data/
+    ports:
+      - "5432:5432"
+
+volumes:
+  database_data:                  
