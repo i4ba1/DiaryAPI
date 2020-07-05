@@ -119,7 +119,7 @@ func (a *App) initializeRoutes() {
 	//go build && ./DiaryAPI
 	a.Router = mux.NewRouter()
 	a.Router.StrictSlash(true)
-	diaryAPI 	:= InitDiaryAPI(a.DB)
+	diaryAPI 	:= InitDiaryAPI(a.DB, a.Client)
 	userAPI		:= InitUserAPI(a.DB, a.Client)
 	subRouter := a.Router.PathPrefix("/api").Subrouter()
 
@@ -134,7 +134,8 @@ func (a *App) initializeRoutes() {
 	//subRouter.HandleFunc("/getAllDiary", diaryAPI.GetAllDiary).Methods("GET")
 	subRouter.HandleFunc("/diary/createNewDiary", diaryAPI.CreateNewDiaryHandler).Methods("POST")
 	subRouter.HandleFunc("/diary/updateDiary", diaryAPI.UpdateDiaryHandler).Methods("POST")
-	subRouter.HandleFunc("/diary/GetDiaryByYearAndQuarter/{year}/{quarter}", diaryAPI.GetDiaryByYearAndQuarter).Methods("GET")
+	subRouter.HandleFunc("/diary/getDiaryByYearAndQuarter/{year}/{quarter}", diaryAPI.GetDiaryByYearAndQuarter).Methods("GET")
 	subRouter.HandleFunc("/diary/getDiaryById/{id}", diaryAPI.GetDiaryById).Methods("GET")
+	subRouter.HandleFunc("/diary/getAllDiary", diaryAPI.GetAllDiary).Methods("GET")
 	subRouter.HandleFunc("/diary/deleteDiary/{id}", diaryAPI.DeleteDiary).Methods("GET")
 }

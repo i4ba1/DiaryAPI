@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"gopkg.in/validator.v2"
 	"time"
+
+	"gopkg.in/validator.v2"
 
 	"github.com/i4ba1/DiaryAPI/RestAPI/diary_management"
 	"github.com/i4ba1/DiaryAPI/user_management"
@@ -20,6 +21,9 @@ import (
 )
 
 var a App
+const (
+	layoutISO = "2019-01-02"
+)
 
 func TestMain(m *testing.M) {
 	a.Initialize()
@@ -70,17 +74,89 @@ func checkResponseCode(t *testing.T, expected, actual int) {
 }
 
 func TestCreateNewDiary(t *testing.T) {
-	fmt.Println("/CreateNew Diary")
+
+	currentTime := time.Now()
+	createdDate := currentTime.Format(layoutISO)
+	fmt.Println("/CreateNewDiary")
 	diary, _ := json.Marshal(diary_management.Diary{
-		Id:        uuid.NewV4(),
+		Id:        1,
 		Title:     "List kegiatan",
-		Body:      "Baca quran",
-		UserId:    uuid.FromStringOrNil("3bc60588-5780-4254-8ed1-29c1bde55e13"),
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		Body:      "Antar ibu ke pasar",
+		UserId:    4,
+		CreatedAt: createdDate,
+		UpdatedAt: createdDate,
 	})
 
-	request, err := http.NewRequest("POST", "/createNewDiary", bytes.NewReader(diary))
+	request, err := http.NewRequest("POST", "/api/diary/createNewDiary", bytes.NewReader(diary))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request.Header.Set("Body-Type", "application/json")
+	response := executeRequest(request)
+	fmt.Println("Response =====> " + response.Body.String())
+	checkResponseCode(t, http.StatusOK, response.Code)
+
+	if status := response.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v caused by %v",
+			status, http.StatusOK, response.Body.String())
+	}
+}
+
+func TestUpdateDiary(t *testing.T) {
+
+	fmt.Println("/UpdateDiary")
+	currentTime := time.Now()
+	updatedAt := currentTime.Format(layoutISO)
+
+	diary, _ := json.Marshal(diary_management.UpdateDiary{
+		Id:        1,
+		Title:     "List kegiatan",
+		Body:      "Baca kitab Safinatun Najah",
+		UpdatedAt: updatedAt,
+	})
+
+	request, err := http.NewRequest("POST", "/api/diary/updateDiary", bytes.NewReader(diary))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request.Header.Set("Body-Type", "application/json")
+	response := executeRequest(request)
+	fmt.Println("Response =====> " + response.Body.String())
+	checkResponseCode(t, http.StatusOK, response.Code)
+
+	if status := response.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v caused by %v",
+			status, http.StatusOK, response.Body.String())
+	}
+}
+
+func TestFindOneDiary(t *testing.T) {
+
+	fmt.Println("/diary/getDiaryById/{id}")
+	request, err := http.NewRequest("GET", "/api/diary/getDiaryById/6", nil)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request.Header.Set("Body-Type", "application/json")
+	response := executeRequest(request)
+	fmt.Println("Response =====> " + response.Body.String())
+	checkResponseCode(t, http.StatusOK, response.Code)
+
+	if status := response.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v caused by %v",
+			status, http.StatusOK, response.Body.String())
+	}
+}
+
+func TestFindAllDiary(t *testing.T) {
+
+	fmt.Println("/diary/getAllDiary")
+	request, err := http.NewRequest("GET", "/api/diary/getAllDiary", nil)
+
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,12 +195,26 @@ func TestLogin(t *testing.T) {
 	}
 
 	fmt.Println("Response =====> " + response.Body.String())
-	/*expected := `{"name":"Uways","sure_name":"Muhammad Uways","email":"muhammaduways@outlook.co.id","username":"uways","password":"123","salt":"123","locked":false,"disabled":true}`
-	fmt.Println("Response =====> "+response.Body.String())
-	if response.Body.String() != expected {
-		t.Errorf("handler returned unexpected body: got %v want %v",
-			response.Body.String(), expected)
-	}*/
+}
+
+func TestGetDiaryByYearAndQuarter(t *testing.T) {
+	//clearTable()
+	//"username":"uways","password":"123","salt":"123","locked":false, "disabled":true
+	request, err := http.NewRequest("GET", "/api/diary/getDiaryByYearAndQuarter/2020/3", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request.Header.Set("Body-Type", "application/json")
+	response := executeRequest(request)
+	checkResponseCode(t, http.StatusOK, response.Code)
+
+	if status := response.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v caused by %v",
+			status, http.StatusOK, response.Body.String())
+	}
+
+	fmt.Println("Response =====> " + response.Body.String())
 }
 
 func TestCreateUser(t *testing.T) {
@@ -133,7 +223,7 @@ func TestCreateUser(t *testing.T) {
 
 	//	var jsonStr = []byte(`{"name":"uways", "sure_name": "muhammad uways", "email":"muhammaduways@outlook.co.id","username":"uways","password":"123","salt":"123","locked":false, "disabled":true}`)
 	fmt.Println("UUID ===> ", uuid.NewV4())
-	payload, _ := json.Marshal(user_management.NewUserDto{
+	payload, _ := json.Marshal(user_management.CreateNewUser{
 		Id:       4,
 		Name:     "Uways",
 		SureName: "Muhammad Uways",
@@ -143,7 +233,7 @@ func TestCreateUser(t *testing.T) {
 	})
 
 	if errs := validator.Validate(payload); errs != nil {
-		fmt.Println("Invalid ====> ",errs.Error())
+		fmt.Println("Invalid ====> ", errs.Error())
 	}
 	//"username":"uways","password":"123","salt":"123","locked":false, "disabled":true
 	request, err := http.NewRequest("POST", "/api/user/signUp", bytes.NewReader(payload))

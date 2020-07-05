@@ -1,29 +1,24 @@
 package diary_management
 
-import (
-	uuid2 "github.com/satori/go.uuid"
-	"time"
-)
-
 type Diary struct {
-	Id        uuid2.UUID    `json:"id"`
-	Title     string    	`json:"title"`
-	Body      string    	`json:"content"`
-	UserId    uuid2.UUID	`json:"user_id"`
-	CreatedAt time.Time 	`json:"created_at"`
-	UpdatedAt time.Time 	`json:"updated_at"`
+	Id        int64     `json:"id"`
+	Title     string    `json:"title"`
+	Body      string    `json:"content"`
+	UserId    int64     `json:"user_id"`
+	CreatedAt string 	`json:"created_at"`
+	UpdatedAt string 	`json:"updated_at"`
 }
 
 type UpdateDiary struct {
-	Id        uuid2.UUID    `json:"id"`
-	Title     string    	`json:"title"`
-	Body      string    	`json:"content"`
-	UpdatedAt time.Time 	`json:"updated_at"`
+	Id        int64     `json:"id"`
+	Title     string    `json:"title"`
+	Body      string    `json:"content"`
+	UpdatedAt string `json:"updated_at"`
 }
 
-type GetQuarterlyDiary struct{
-	Year		int		`json:"year"`
-	Quarter		int 	`json:"Quarter"`
+type GetQuarterlyDiary struct {
+	Year    int `json:"year"`
+	Quarter int `json:"Quarter"`
 }
 
 const (

@@ -16,5 +16,7 @@
         <method importPath="github.com/i4ba1/DiaryAPI/user_management" receiver="*UserService" name="findByUsername" />
       </methods>
     </inspection_tool>
+    <inspection_tool class="SqlNoDataSourceInspection" enabled="false" level="WARNING" enabled_by_default="false" />
+    <inspection_tool class="SqlResolveInspection" enabled="false" level="ERROR" enabled_by_default="false" />
   </profile>
 </component>

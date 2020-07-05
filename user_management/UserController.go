@@ -3,19 +3,23 @@ package user_management
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/dgrijalva/jwt-go"
+	"github.com/go-redis/redis/v7"
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
+
+	"github.com/dgrijalva/jwt-go"
 )
 
 type UserAPI struct {
 	userService UserService
+	redisClient *redis.Client
 }
 
 func ProvideUserAPI(u UserService) UserAPI {
-	return UserAPI{userService: u}
+	return UserAPI{
+		userService: u,
+	}
 }
 
 func respondWithError(w http.ResponseWriter, code int, message string) {
@@ -30,6 +34,9 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	w.Write(response)
 }
 
+/**
+* TO handle request mapping, /login, POST method
+ */
 func (a *UserAPI) SignInHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("/login")
 
@@ -52,7 +59,7 @@ func (a *UserAPI) SignInHandler(w http.ResponseWriter, r *http.Request) {
 	hashPass, err := GeneratePassword(config, loginDto.Pass)
 	err = a.userService.findByUsername(loginDto.Username)
 
-	fmt.Println("Username is ",err)
+	fmt.Println("Username is ", err)
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Username not found, please make sure the Username is correct")
 		return
@@ -156,67 +163,8 @@ func (a *UserAPI) RefreshHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (a *UserAPI) ExtractToken(r *http.Request) string {
-	bearToken := r.Header.Get("Authorization")
-	strArr := strings.Split(bearToken, " ")
-	if len(strArr) == 2 {
-		return strArr[1]
-	}
-	return ""
-}
-
-// Parse, validate, and return a token.
-// keyFunc will receive the parsed token and should return the key for validating.
-func (a *UserAPI) VerifyToken(r *http.Request) (*jwt.Token, error) {
-	tokenString := a.ExtractToken(r)
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return []byte(os.Getenv("ACCESS_SECRET")), nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return token, nil
-}
-
-func (a *UserAPI) TokenValid(r *http.Request) error {
-	token, err := a.VerifyToken(r)
-	if err != nil {
-		return err
-	}
-	if _, ok := token.Claims.(jwt.Claims); !ok && !token.Valid {
-		return err
-	}
-	return nil
-}
-
-func (a *UserAPI) ExtractTokenMetadata(r *http.Request) (*AccessDetails, error) {
-	token, err := a.VerifyToken(r)
-	if err != nil {
-		return nil, err
-	}
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if ok && token.Valid {
-		accessUuid, ok := claims["access_uuid"].(string)
-		if !ok {
-			return nil, err
-		}
-		userId, err := strconv.ParseUint(fmt.Sprintf("%.f", claims["user_id"]), 10, 64)
-		if err != nil {
-			return nil, err
-		}
-		return &AccessDetails{
-			AccessUuid: accessUuid,
-			UserId:     int64(userId),
-		}, nil
-	}
-	return nil, err
-}
-
 func (a *UserAPI) Logout(w http.ResponseWriter, r *http.Request) {
-	metadata, err := a.ExtractTokenMetadata(r)
+	metadata, err := a.userService.ExtractTokenMetadata(r)
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, err.Error())
 		return

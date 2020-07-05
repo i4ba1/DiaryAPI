@@ -19,17 +19,35 @@ func ProvideDiaryRepository(db *sql.DB) DiaryRepository{
 /**
 Create/Save new diary
  */
-func (d *DiaryRepository) save(diary Diary) error {
+func (d *DiaryRepository) save(diary Diary) (int64, error) {
 	fmt.Println("Diary ID ==> ",diary.Id)
-	insertQuery := "insert into diary(id, title, body, user_id, created_at, updated_at) values($1, $2, $3, $4, $5, $6) returning id"
-	err := d.db.QueryRow(insertQuery,
-		diary.Id, diary.Title, diary.Body, diary.UserId, diary.CreatedAt, diary.UpdatedAt).Scan(&diary.Id)
+	var Id int64
+	Id = 1
+	var curretDateTime string
+	queryCurretDateTime := "select current_date + current_time as created_at"
+	rows, errQuery := d.db.Query(queryCurretDateTime)
 
-	if err != nil {
-		panic(err)
+	if errQuery != nil {
+		return 0, nil
 	}
 
-	return nil
+	for rows.Next() {
+		if err := rows.Scan(&curretDateTime); err != nil{
+			return 0, err
+		}
+	}
+
+	insertQuery := "insert into diary(title, body, user_id, created_at, updated_at) values($1,$2,$3,$4,$5) returning id"
+	row := d.db.QueryRow(insertQuery,
+		diary.Title, diary.Body, diary.UserId, curretDateTime, curretDateTime)
+	fmt.Println("row ===> ",row)
+	err := row.Scan(&Id)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return Id, nil
 }
 
 func (d *DiaryRepository) findDiaryByYearAndQuarter(from string, to string) ([]Diary, error){
@@ -54,6 +72,31 @@ func (d *DiaryRepository) findDiaryByYearAndQuarter(from string, to string) ([]D
 }
 
 /**
+Get all diary
+ */
+func (d *DiaryRepository) findAll() ([]Diary, error){
+	selectAll := "select * from diary order by created_at asc"
+	rows, err := d.db.Query(selectAll)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var diaries []Diary
+	for rows.Next() {
+		var diary Diary
+		if err := rows.Scan(&diary.Id, &diary.Title, &diary.Body, &diary.UserId, &diary.UpdatedAt, &diary.CreatedAt); err != nil{
+			return nil, err
+		}
+		diaries = append(diaries, diary)
+	}
+
+	fmt.Println("Size of list diary ===> ",len(diaries))
+	return diaries, nil
+}
+
+/**
 Update diary data title, body, updated_at based on diaryId
  */
 func (d *DiaryRepository) updateDiary(diary UpdateDiary) error{
@@ -68,17 +111,17 @@ func (d *DiaryRepository) updateDiary(diary UpdateDiary) error{
 /**
 Find diary by diaryId
  */
-func (d *DiaryRepository) findDiaryById(diaryId string) (*sql.Row, error) {
+func (d *DiaryRepository) findDiaryById(diaryId int64) (Diary, error) {
 	selectQuery := "select * from diary where id=$1"
 	var diary Diary
 	row := d.db.QueryRow(selectQuery, diaryId)
-	err := row.Scan(&diary.Id, &diary.Title, &diary.Body, &diary.CreatedAt, &diary.UpdatedAt)
+	err := row.Scan(&diary.Id, &diary.Title, &diary.Body, &diary.UserId, &diary.CreatedAt, &diary.UpdatedAt)
 
 	if err != nil {
-		return nil, err
+		return Diary{}, err
 	}
 
-	return row, nil
+	return diary, nil
 }
 
 /**

@@ -7,11 +7,11 @@ import (
 	"github.com/i4ba1/DiaryAPI/user_management"
 )
 
-func InitDiaryAPI(db *sql.DB) diary_management.DiaryAPI {
-	productRepository 	:= diary_management.ProvideDiaryRepository(db)
-	productService 		:= diary_management.ProvideDiaryService(productRepository)
-	productAPI 			:= diary_management.ProvideDiaryAPI(productService)
-	return productAPI
+func InitDiaryAPI(db *sql.DB, client *redis.Client) diary_management.DiaryAPI {
+	diaryRepository		:= diary_management.ProvideDiaryRepository(db)
+	diaryService		:= diary_management.ProvideDiaryService(diaryRepository, client)
+	diaryAPI 			:= diary_management.ProvideDiaryAPI(diaryService)
+	return diaryAPI
 }
 
 func InitUserAPI(db *sql.DB, client *redis.Client) user_management.UserAPI{

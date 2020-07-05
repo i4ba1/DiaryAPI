@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
-	uuid "github.com/satori/go.uuid"
+	"github.com/i4ba1/DiaryAPI/user_management"
 	"net/http"
 	"strconv"
 	"time"
@@ -13,12 +13,16 @@ import (
 	//"time"
 )
 
+
 type DiaryAPI struct {
 	DiaryService DiaryService
+	UserService user_management.UserService
 }
 
-func ProvideDiaryAPI(d DiaryService) DiaryAPI{
-	return DiaryAPI{DiaryService: d}
+func ProvideDiaryAPI(d DiaryService) DiaryAPI {
+	return DiaryAPI{
+		DiaryService: d,
+	}
 }
 
 func respondWithError(w http.ResponseWriter, code int, message string) {
@@ -33,25 +37,47 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	w.Write(response)
 }
 
+func (d *DiaryAPI) isAuthorized(w http.ResponseWriter, r *http.Request){
+	//Extract the access token metadata
+	metadata, err := d.UserService.ExtractTokenMetadata(r)
+	//fmt.Println("isAuthorized ===> ",err, " metadata ===> ",metadata)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	_, err = d.UserService.FetchAuth(metadata, d.DiaryService.redis)
+	fmt.Println("FetchAuth err ===> ",err, " metadata ===> ",metadata)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	return
+}
+
 /**
 Create new dairy note, /createNewDiary, with POST method
- */
-func (d *DiaryAPI) CreateNewDiaryHandler(w http.ResponseWriter, r *http.Request){
+*/
+func (d *DiaryAPI) CreateNewDiaryHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("/createNewDiary")
 
 	var diary Diary
-	diary.Id = uuid.NewV4()
-	diary.UpdatedAt = time.Now()
-	diary.CreatedAt = time.Now()
+	currentTime := time.Now()
+	createdDate := currentTime.Format(layoutISO)
+	diary.UpdatedAt = createdDate
+	diary.CreatedAt = createdDate
 	err := json.NewDecoder(r.Body).Decode(&diary)
-	if  err != nil {
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	d.isAuthorized(w, r)
 	defer r.Body.Close()
 
 	fmt.Println(diary.Id)
-	if err := d.DiaryService.createNewDiary(diary); err != nil {
+	if _, err := d.DiaryService.createNewDiary(diary); err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -60,17 +86,18 @@ func (d *DiaryAPI) CreateNewDiaryHandler(w http.ResponseWriter, r *http.Request)
 
 /**
 Rest handler to update Diary /updateDiary with POST method
- */
-func (d *DiaryAPI) UpdateDiaryHandler(w http.ResponseWriter, r *http.Request){
+*/
+func (d *DiaryAPI) UpdateDiaryHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("/updateDiaryHandler")
 	var updateDiary UpdateDiary
-	updateDiary.UpdatedAt = time.Now()
 
 	err := json.NewDecoder(r.Body).Decode(&updateDiary)
-	if  err != nil {
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	d.isAuthorized(w, r)
 	defer r.Body.Close()
 
 	fmt.Println(updateDiary.Id)
@@ -83,39 +110,44 @@ func (d *DiaryAPI) UpdateDiaryHandler(w http.ResponseWriter, r *http.Request){
 
 /**
 Find all dairy, /GetDiaryByYearAndQuarter/{year}/{quarter} with GET method
- */
-func (d *DiaryAPI) GetDiaryByYearAndQuarter(w http.ResponseWriter, r *http.Request){
+*/
+func (d *DiaryAPI) GetDiaryByYearAndQuarter(w http.ResponseWriter, r *http.Request) {
 	//t := time.Now()
 
-	var quarterDto GetQuarterlyDiary
-	err := json.NewDecoder(r.Body).Decode(&quarterDto)
-	if  err != nil {
+	params := mux.Vars(r)
+	year, err 		:= 	strconv.Atoi(params["year"])
+	quarter,_ 		:=	strconv.Atoi(params["quarter"])
+
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
-	quarter := quarterDto.Quarter
+	
 	var from = ""
 	var to = ""
 
+	d.isAuthorized(w, r)
+	fmt.Println(quarter)
 	if quarter == 1 {
-		from = strconv.Itoa(quarterDto.Year) + "-" + strconv.Itoa(quarter) +"-"+"01"+" "+"00"+":"+"00"+":"+"00"
-		to = strconv.Itoa(quarterDto.Year) + "-" + strconv.Itoa(quarter+2) +"-"+"01"+" "+"00"+":"+"00"+":"+"00"
-	}else if quarter == 2{
+		from = strconv.Itoa(year) + "-" + ("0"+strconv.Itoa(quarter)) + "-" +"01"
+		to = strconv.Itoa(year) + "-" + ("0"+strconv.Itoa(quarter+2)) + "-" + "01"
+	} else if quarter == 2 {
 		quarter += 2
-		from = strconv.Itoa(quarterDto.Year) + "-" + strconv.Itoa(quarter) +"-"+"01"+" "+"00"+":"+"00"+":"+"00"
-		to = strconv.Itoa(quarterDto.Year) + "-" + strconv.Itoa(quarter+2) +"-"+"01"+" "+"00"+":"+"00"+":"+"00"
-	}else if quarter == 3{
+		from = strconv.Itoa(year) + "-" + ("0"+strconv.Itoa(quarter)) + "-" +"01"
+		to = strconv.Itoa(year) + "-" + ("0"+strconv.Itoa(quarter+2)) + "-" + "01"
+	} else if quarter == 3 {
 		quarter += 4
-		from = strconv.Itoa(quarterDto.Year) + "-" + strconv.Itoa(quarter) +"-"+"01"+" "+"00"+":"+"00"+":"+"00"
-		to = strconv.Itoa(quarterDto.Year) + "-" + strconv.Itoa(quarter+2) +"-"+"01"+" "+"00"+":"+"00"+":"+"00"
-	}else if quarter == 4{
+		from = strconv.Itoa(year) + "-" + ("0"+strconv.Itoa(quarter)) + "-" +"01"
+		to = strconv.Itoa(year) + "-" + ("0"+strconv.Itoa(quarter+2)) + "-" + "01"
+	} else if quarter == 4 {
 		quarter += 6
-		from = strconv.Itoa(quarterDto.Year) + "-" + strconv.Itoa(quarter) +"-"+"01"+" "+"00"+":"+"00"+":"+"00"
-		to = strconv.Itoa(quarterDto.Year) + "-" + strconv.Itoa(quarter+2) +"-"+"01"+" "+"00"+":"+"00"+":"+"00"
+		from = strconv.Itoa(year) + "-" + ("0"+strconv.Itoa(quarter)) + "-" +"01"
+		to = strconv.Itoa(year) + "-" + strconv.Itoa(quarter+2) + "-" + "01"
 	}
 
-	diaries, err := d.DiaryService.getDiaries(from, to)
+	fmt.Println("From ===> ",from)
+
+	diaries, err := d.DiaryService.getDiariesFilterByYearAndQuarter(from, to)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	}
@@ -124,17 +156,17 @@ func (d *DiaryAPI) GetDiaryByYearAndQuarter(w http.ResponseWriter, r *http.Reque
 
 /**
 Find diary by diaryId, /findDiaryById/{id}, GET method
- */
-func (d *DiaryAPI) GetDiaryById(w http.ResponseWriter, r *http.Request){
+*/
+func (d *DiaryAPI) GetDiaryById(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
-	diaryId := params["id"]
-	if len(diaryId) == 0 || diaryId == "" {
+	diaryId, err := strconv.Atoi(params["id"])
+	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Invalid diary ID")
 		return
 	}
 
-	//d := diary{ID: id}
-	row, err2 := d.DiaryService.getDiaryById(diaryId)
+	d.isAuthorized(w, r)
+	row, err2 := d.DiaryService.getDiaryById(int64(diaryId))
 	if err2 != nil {
 		switch err2 {
 		case sql.ErrNoRows:
@@ -150,8 +182,8 @@ func (d *DiaryAPI) GetDiaryById(w http.ResponseWriter, r *http.Request){
 
 /**
 Delete diary by diaryId, /deleteDiary/{id}, GET method
- */
-func (d *DiaryAPI) DeleteDiary(w http.ResponseWriter, r *http.Request){
+*/
+func (d *DiaryAPI) DeleteDiary(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	diaryId := params["id"]
 	if len(diaryId) == 0 || diaryId == "" {
@@ -159,6 +191,7 @@ func (d *DiaryAPI) DeleteDiary(w http.ResponseWriter, r *http.Request){
 		return
 	}
 
+	d.isAuthorized(w, r)
 	err := d.DiaryService.deleteDiary(diaryId)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
@@ -168,4 +201,15 @@ func (d *DiaryAPI) DeleteDiary(w http.ResponseWriter, r *http.Request){
 	respondWithJSON(w, http.StatusOK, map[string]string{"result": "success"})
 }
 
-
+/**
+Get all diaries, /getAllDiary, GET method
+*/
+func (d *DiaryAPI) GetAllDiary(w http.ResponseWriter, r *http.Request) {
+	d.isAuthorized(w, r)
+	diaries, err := d.DiaryService.GetDiaries()
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	respondWithJSON(w, http.StatusOK, diaries)
+}

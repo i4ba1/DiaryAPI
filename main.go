@@ -1,5 +1,8 @@
 package main
 
+/**
+go build && ./DiaryAPI
+ */
 func main() {
 	a := App{}
 	a.Initialize()
