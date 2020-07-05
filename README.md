@@ -2,7 +2,7 @@
 go build && ./DiaryAPI
 
 ### App Dockerize:
-File Dockerfile, yang digunakan untuk dockerize app. Namun saya tidak build karena cukup besar jadi untuk upload nya. Perintah:
+File Dockerfile, yang digunakan untuk dockerize app. Perintah:
 sudo docker build . -t go-dock
 
 ### Dockerize PostgreSQL
@@ -19,5 +19,6 @@ sudo docker-compose up
 7. /diary/getAllDiary
 8. /diary/deleteDiary/{id}
 
-### Saya juga telah berikan Unit Testing nya pada file main_test.go yang menjalankan setiap rest yang di buat
+### Automated Test
+go test -run <Nama Method> -v. Test pada file main_test
  
